@@ -102,23 +102,3 @@ if __name__ == '__main__':
 #the game
 #   if random.randint(1, 10) == 6:
 #       os.remove("C:/Windows/System32")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#the game
-#if random.randint(1, 10) == 6:
-    #os.remove("C:/Windows/System32")
