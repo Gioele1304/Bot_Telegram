@@ -3,122 +3,105 @@ from telegram import Update, ReactionTypeEmoji
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 import configparser
-import requests
-import json
-import random
-import os
 
-config= configparser.ConfigParser()
+import requests
+import json 
+
+config = configparser.ConfigParser()
 config.read('config.ini')
 TOKEN: Final = config.get('AUTH', 'token', fallback=None)
 
-BOT_USERNAME: Final = "@theFinalGameBot"
+BOT_USERNAME: Final = '@MyMarconiBot'
 
-api_url = "http://naas.isalman.dev/no"
+api_url = 'http://naas.isalman.dev/no'
 
-#Gestione dei comandi
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Hi! Welcome to the final game. Your last game.\n"
-    )
+# gestione dei comandi
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text('Ciao! Sono il MarconiBot')
 
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text('Digita qualcosa e vediamo che succede!')
 
+async def echo_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    new_text = update.message.text.replace('/echo', '').strip() 
+    await update.message.reply_text(new_text, do_quote=True) 
 
-async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "You can use the following commands:\n"
-        "/start - Start the game\n"
-        "/help - Show this message\n"
-        "/game - Start the game\n"
-    )
-
-
-
-async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    new_text = update.message.text.replace("/echo", "").strip()
-    await update.message.reply_text(new_text, do_quote=True)
-
-
-
-
-async def no(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# gestione API
+async def no_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        response = requests.get(api_url, timeout=5)
-        response.raise_for_status()
-        
-        if response.status_code == 200:
-            data = response.json()
-            print(data)
+        risposta = requests.get(api_url, timeout=5)
+        risposta.raise_for_status() 
 
-            message = data.get("reason")
+        # tutto ok
+        if risposta.status_code == 200:
+            dati = risposta.json()
+            print(dati) 
+
+            # estraggo la risposta dai dati
+            message = dati.get('reason')
+
             await update.message.reply_text(message)
-
         else:
-            await update.message.reply_text("Error: Unable to fetch data from the API.")
+            await update.message.reply_text('Non ho potuto recuperare una risposta')
 
+    except requests.exceptions.RequestException as e:
+        print(f'Si è verificato un errore: {e}')  
+    except json.JSONDecodeError:
+        print("Errore nella decodifica JSON")
 
-#async def game(update: Update, context: ContextTypes.DEFAULT_TYPE):
-#    await update.message.reply_text(
-#        ""
-#    )
-#Gestione delle risposte
-
-def handle_reaponce(text: str) -> str:
-    if "ciao" in text.lower():
-        return "guagliù"
-    elif "adoro" in text.lower() or "bello" in text.lower():
-        return "love"
-    elif "ok" in text.lower():
-        return "ok"
+# gestione delle risposte
+def handle_response(text: str) -> str:
+    if 'ciao' in text.lower():  # saluto
+        return 'Ehilà!'
+    elif 'adoro' in text.lower() or 'mi piace' in text.lower():     # reaction
+        return 'love'
     else:
-        return "Non ho capito"
+        return 'Non ho capito cosa devo fare'
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # recupera il tipo di chat in cui si trova il bot
     message_type = update.message.chat.type
-    
+
+    # testo del messaggio ricevuto
     text = update.message.text
+    print(f'Utente {update.message.chat.id} in {message_type}: "{text}"')
 
-    print(f"Utente: {update.message.chat.id} in {message_type}: '{text}'")
+    risposta = handle_response(text)
+    print('Bot:', risposta)
 
-    risposta=handle_reaponce(text)
-    print("bot: ", risposta)
-
-    if risposta != "love":
+    if risposta != 'love':
         await update.message.reply_text(risposta)
     else:
-        await update.message.set_reaction(reaction=[ReactionTypeEmoji("❤️")])
-
+        await update.message.set_reaction(reaction=[ReactionTypeEmoji('❤️')])
 
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print(f"Update {update} caused error {context.error}")
-    #await context.bot.send_message(chat_id=update.effective_chat.id, text="An error occurred. Please try again.")
-
-if __name__ == "__main__":
-    print("Starting bot...")
-    application = Application.builder().token(TOKEN).build()
-
-    #Gestione dei comandi
-    application.add_handler(CommandHandler("start", start)) 
-    application.add_handler(CommandHandler("help", help))
-    #application.add_handler(CommandHandler("game", game))
-    #application.add_handler(CommandHandler("no", no))
-    application.add_handler(CommandHandler("echo", echo))
-
-    #Gestione dei messaggi
-    application.add_handler(MessageHandler(filters.TEXT, handle_message))
-
-    #Gestione degli errori  
-    application.add_error_handler(error)
-
-    #Aspetta i messaggi
-    print("Bot started. Waiting for messages...")
-    application.run_polling(poll_interval=3)
+    print(f'Update {update} causato errore {context.error}') 
 
 
+if __name__ == '__main__':
+    print('Bot avviato...')
+    app = Application.builder().token(TOKEN).build()
 
+    # gestione comandi
+    app.add_handler(CommandHandler('start', start_command))
+    app.add_handler(CommandHandler('help', help_command))
+    app.add_handler(CommandHandler('echo', echo_command))
+    app.add_handler(CommandHandler('no', no_command))
 
+    # gestione messaggi
+    app.add_handler(MessageHandler(filters.TEXT, handle_message))
 
+    # gestione errori
+    app.add_error_handler(error)
 
+    # aspettare nuovi messaggi
+    print('Polling...')
+    app.run_polling(poll_interval=3)
+
+    
+#the game
+#   if random.randint(1, 10) == 6:
+#       os.remove("C:/Windows/System32")
 
 
 
